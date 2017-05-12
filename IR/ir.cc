@@ -155,9 +155,7 @@ int
 IR::init(int argc, char * argv[])
 {
 	char tun_name[IFNAMSIZ];
-//	char phy_name[IFNAMSIZ] = "wlan0";
-	
-	char phy_name[IFNAMSIZ] = "eth0";  //hao @ 17-5-12
+	char phy_name[IFNAMSIZ] = "wlan0";
 	char usage[] = "usage: tunudp dev";
 	int so_broadcast = 1;
 	int ret = -1;
@@ -226,7 +224,7 @@ IR::init(int argc, char * argv[])
 	if (bind(data_fd, (struct sockaddr *) &m_dataSA, sizeof(m_dataSA)) != 0)
 		die("data bind()");
 
-//	init_timer();  hao @ 17-5-12
+	init_timer();
 	return 0;
 }
 
@@ -343,7 +341,7 @@ IR::recv_tun(int fd)
 	p_ip = (struct iphdr *) data_buffer;
 	message.length = nread;
 	m_gps = get_gps();
-	opt = gps_by_ip(p_ip->daddr,&dst_phy_ip,&dst_gps);
+	opt = gps_by_ip(p_ip->daddr, &dst_phy_ip,&dst_gps);
 	message.src_gps_x = m_gps.x;
 	message.src_gps_y = m_gps.y;
 	if(opt)
@@ -355,10 +353,8 @@ IR::recv_tun(int fd)
 		message.dst_gps_x = dst_gps.x;
 		message.dst_gps_y = dst_gps.y;
 		printf("send data unicast: myGPS (%d,%d)\ndstGPS (%d,%d)",message.src_gps_x,message.src_gps_y = m_gps.y,message.dst_gps_x,message.dst_gps_y);
-	
-		//hao : should piggyback GPS into payload, send out using one SINGLE UDP packet
-		sendto(data_fd, (char *)&message, sizeof(message), 0, (struct sockaddr*) &dst_addr, sizeof(dst_addr)); // hao @ 17-5-12
-		sendto(data_fd, data_buffer, sizeof(data_buffer), 0, (struct sockaddr*) &dst_addr, sizeof(dst_addr));  // hao @ 17-5-12
+		sendto(data_fd, (char *)&message, sizeof(message), 0, (struct sockaddr*) &dst_addr, sizeof(dst_addr));
+		sendto(data_fd, data_buffer, sizeof(data_buffer), 0, (struct sockaddr*) &dst_addr, sizeof(dst_addr));
 	}
 	else
 	{
@@ -366,8 +362,8 @@ IR::recv_tun(int fd)
 		message.dst_gps_x = 0;
 		message.dst_gps_y = 0;
 		printf("send data broadcast: myGPS (%d,%d)\ndstGPS (%d,%d)",message.src_gps_x,message.src_gps_y = m_gps.y,message.dst_gps_x,message.dst_gps_y);
-		sendto(data_fd, (char *)&message, sizeof(message), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr)); //hao @ 17-5-12
-		sendto(data_fd, data_buffer, sizeof(data_buffer), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr)); // hao @ 17-5-12
+		sendto(data_fd, (char *)&message, sizeof(message), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr));
+		sendto(data_fd, data_buffer, sizeof(data_buffer), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr));
 	}
 
 }
@@ -566,7 +562,7 @@ IR::RouteMakeup(GPS dstGPS)
     return nextHopID;
 }
 void
-IR::Forwarding(uint32_t dstID,uint64_t dstGPS)
+IR::Forwarding(uint32_t dstID, GPS dstGPS)
 {
     uint32_t nextHopID = 0;
     std::map<uint32_t, ForwardTableEntry*>::iterator it = m_forward_table.find(dstID);
@@ -575,7 +571,7 @@ IR::Forwarding(uint32_t dstID,uint64_t dstGPS)
     int until_time = (now.tv_sec - begin_time)*1000 + now.tv_usec/1000;
     if(it == m_forward_table.end())
     {
-        nextHopID = RouteMakeup(GPS::Uint64ToGPS(dstGPS));
+        nextHopID = RouteMakeup(dstGPS);
         //modify calnexhop()
         std::map<uint32_t, ForwardTableEntry*>::iterator it = m_forward_table.find(nextHopID);
         GPS nextHopGPS = it->second->m_gps;
@@ -589,7 +585,7 @@ IR::Forwarding(uint32_t dstID,uint64_t dstGPS)
     else if(until_time - (int)it->second->GetTimestamp() > TTLNEIGHBORTABLE)
     {
        	// find, but expired. calculate the next hop, and add this to m_forwardtable
-        nextHopID = RouteMakeup(GPS::Uint64ToGPS(dstGPS));
+        nextHopID = RouteMakeup(dstGPS);
         //modify calnexhop()
         //std::cout << "jixuefeng ::: " << (int)nextHopID << std::endl;
         if (nextHopID != BROADCASTADDRESS)
@@ -601,7 +597,7 @@ IR::Forwarding(uint32_t dstID,uint64_t dstGPS)
     else
     {
       //find, need to judge the ligality
-        if (IsLegal(it->second->m_next_hop_ip, GPS::Uint64ToGPS(dstGPS)))
+        if (IsLegal(it->second->m_next_hop_ip, dstGPS))
 			{
 				//legal, send as the entry
 				nextHopID = it->second->m_next_hop_ip;
@@ -609,7 +605,7 @@ IR::Forwarding(uint32_t dstID,uint64_t dstGPS)
         else
         {
             //illegal, use RouteMakeup to get the nextHopID
-            nextHopID = RouteMakeup(GPS::Uint64ToGPS(dstGPS));
+            nextHopID = RouteMakeup(dstGPS);
             //std::cout << "jixuefeng ::: " << nextHopID << std::endl;
             m_forward_table[dstID]->m_next_hop_ip = nextHopID;
             m_forward_table[dstID]->m_timestamp = until_time;
@@ -736,20 +732,46 @@ IR::recv_data(int fd)
     struct sockaddr_in from_addr;
 	socklen_t from_len = sizeof(from_addr);
    	const char *curr;
+	uint32_t dst_ip;
 	struct DataMessage data_message;
 	int count;
+	int nread;
 	printf("receive data \n");
-	count = recvfrom(fd, (char*) data_buffer, sizeof(DataMessage), 0, (struct sockaddr*) &from_addr, &from_len);
-    curr = data_buffer;
-    pkt_get_u32(&curr, &data_message.length);
+	count = recvfrom(fd, (char*) &data_message, sizeof(DataMessage), 0, (struct sockaddr*) &from_addr, &from_len);
+	std::cout << data_message.length << "," << data_message.src_gps_x << "," << data_message.src_gps_y << "," << data_message.dst_gps_x << "," << data_message.dst_gps_y << std::endl;
+	nread = recvfrom(fd, (char*) data_buffer, data_message.length, 0, (struct sockaddr*) &from_addr, &from_len);
+	
+	struct iphdr *p_ip;
+	p_ip = (struct iphdr *) data_buffer;
+	dst_ip = p_ip->daddr;
+	std::cout << dst_ip << std::endl;
+	if(dst_ip == m_phy_ip.s_addr)
+	{
+ 		///Reach the destination
+		std::cout << "reach destination" << std::endl;
+		if(write(tun_fd, data_buffer, nread) < 0)
+		{
+			perror ("Writing tun");
+			exit(1);
+		}
+	}
+	else
+	{
+		//forwarding
+		std::cout << "reach destination" << std::endl;
+		GPS dst_gps = GPS(data_message.dst_gps_x,data_message.dst_gps_y);
+		Forwarding(dst_ip, dst_gps);
+	}
+    //curr = data_buffer;
+    /*pkt_get_u32(&curr, &data_message.length);
     pkt_get_u32(&curr, &data_message.src_gps_x);
     pkt_get_u32(&curr, &data_message.src_gps_y);
     pkt_get_u32(&curr, &data_message.src_gps_y);
     pkt_get_u32(&curr, &data_message.dst_gps_x);
     pkt_get_u32(&curr, &data_message.dst_gps_y);
     GPS self_gps = this->m_gps;
-    GPS src_gps = GPS::Uint32ToGPS(data_message.src_gps_x,data_message.src_gps_y);
-    GPS dst_gps = GPS::Uint32ToGPS(data_message.dst_gps_x,data_message.dst_gps_y);
+    GPS src_gps = GPS(data_message.src_gps_x,data_message.src_gps_y);
+    
     if(self_gps.x == dst_gps.x&&self_gps.y == dst_gps.y)
     {
         ///Reach the destination
@@ -757,7 +779,7 @@ IR::recv_data(int fd)
     else
     {
         ///Forwarding(uint32_t dstID,uint64_t dstGPS)
-    }
+    }*/
 }
 
 
