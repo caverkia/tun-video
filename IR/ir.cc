@@ -155,7 +155,9 @@ int
 IR::init(int argc, char * argv[])
 {
 	char tun_name[IFNAMSIZ];
-	char phy_name[IFNAMSIZ] = "wlan0";
+//	char phy_name[IFNAMSIZ] = "wlan0";
+	
+	char phy_name[IFNAMSIZ] = "eth0";  //hao @ 17-5-12
 	char usage[] = "usage: tunudp dev";
 	int so_broadcast = 1;
 	int ret = -1;
@@ -224,7 +226,7 @@ IR::init(int argc, char * argv[])
 	if (bind(data_fd, (struct sockaddr *) &m_dataSA, sizeof(m_dataSA)) != 0)
 		die("data bind()");
 
-	init_timer();
+//	init_timer();  hao @ 17-5-12
 	return 0;
 }
 
@@ -353,8 +355,10 @@ IR::recv_tun(int fd)
 		message.dst_gps_x = dst_gps.x;
 		message.dst_gps_y = dst_gps.y;
 		printf("send data unicast: myGPS (%d,%d)\ndstGPS (%d,%d)",message.src_gps_x,message.src_gps_y = m_gps.y,message.dst_gps_x,message.dst_gps_y);
-		sendto(beacon_fd, (char *)&message, sizeof(message), 0, (struct sockaddr*) &dst_addr, sizeof(dst_addr));
-		sendto(beacon_fd, data_buffer, sizeof(data_buffer), 0, (struct sockaddr*) &dst_addr, sizeof(dst_addr));
+	
+		//hao : should piggyback GPS into payload, send out using one SINGLE UDP packet
+		sendto(data_fd, (char *)&message, sizeof(message), 0, (struct sockaddr*) &dst_addr, sizeof(dst_addr)); // hao @ 17-5-12
+		sendto(data_fd, data_buffer, sizeof(data_buffer), 0, (struct sockaddr*) &dst_addr, sizeof(dst_addr));  // hao @ 17-5-12
 	}
 	else
 	{
@@ -362,8 +366,8 @@ IR::recv_tun(int fd)
 		message.dst_gps_x = 0;
 		message.dst_gps_y = 0;
 		printf("send data broadcast: myGPS (%d,%d)\ndstGPS (%d,%d)",message.src_gps_x,message.src_gps_y = m_gps.y,message.dst_gps_x,message.dst_gps_y);
-		sendto(beacon_fd, (char *)&message, sizeof(message), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr));
-		sendto(beacon_fd, data_buffer, sizeof(data_buffer), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr));
+		sendto(data_fd, (char *)&message, sizeof(message), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr)); //hao @ 17-5-12
+		sendto(data_fd, data_buffer, sizeof(data_buffer), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr)); // hao @ 17-5-12
 	}
 
 }
