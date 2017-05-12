@@ -102,6 +102,7 @@ private:
 	bool IsLegal(uint32_t nghbrIP, GPS dstGPS);
 	uint32_t CalNexHop(GPS dstGPS);
 	uint32_t RouteMakeup(GPS dstGPS);
+    	char * data_buffer;
     	//predict
     	GPS AdvancedPredict(std::queue<GPS> q, uint32_t time, Speed v);
     	double gaussrand(double mu,double sigma);
@@ -112,7 +113,6 @@ private:
 	int tun_fd;
 	int beacon_interval;
 	struct sockaddr_in m_dataSA;
-   	char * data_buffer;
     	char * beacon_buffer;
 	char * tun_buffer;
 	GPS m_gps;
