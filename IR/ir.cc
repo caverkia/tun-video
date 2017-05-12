@@ -155,7 +155,8 @@ int
 IR::init(int argc, char * argv[])
 {
 	char tun_name[IFNAMSIZ];
-	char phy_name[IFNAMSIZ] = "wlan0";
+//	char phy_name[IFNAMSIZ] = "wlan0";
+	char phy_name[IFNAMSIZ] = "eth0";  //hao @ 5-12
 	char usage[] = "usage: tunudp dev";
 	int so_broadcast = 1;
 	int ret = -1;
@@ -226,7 +227,7 @@ IR::init(int argc, char * argv[])
 	if (bind(data_fd, (struct sockaddr *) &m_dataSA, sizeof(m_dataSA)) != 0)
 		die("data bind()");
 
-	init_timer();
+//	init_timer();   // hao @ 5-12
 	return 0;
 }
 
@@ -332,7 +333,20 @@ IR::recv_tun(int fd)
 	uint16_t nread,nwrite;
 	uint32_t dst_phy_ip;
 	int opt;
-	struct iphdr *p_ip;
+
+    nread = read(tun_fd, tun_buffer, sizeof(tun_buffer));
+    if(nread > 0)
+    {
+        if(write(data_fd, tun_buffer, nread) != nread)
+            perror("error in writing to UDP");
+    }
+    else
+        perror("error in reading from TUN");
+    return;
+
+
+/*
+    struct iphdr *p_ip;
 	GPS dst_gps;
 	const char* curr_tun;
 	struct DataMessage message;
@@ -370,7 +384,7 @@ IR::recv_tun(int fd)
 		sendto(data_fd, (char *)&message, sizeof(message), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr));
 		sendto(data_fd, tun_buffer, sizeof(tun_buffer), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr));
 	}
-
+*/
 }
 
 void
@@ -742,6 +756,22 @@ IR::recv_data(int fd)
 	int count;
 	int nread;
 	printf("receive data \n");
+
+	nread = read(fd, data_buffer, sizeof(data_buffer));
+	if(nread > 0)
+	{
+        if(write(tun_fd, data_buffer, nread) != nread)
+            perror("error in writing to UDP");
+    }
+    else
+        perror("error in reading from tun");
+    return;       
+
+
+	
+
+	
+	/*
 	count = recvfrom(fd, (char*) &data_message, sizeof(DataMessage), 0, (struct sockaddr*) &from_addr, &from_len);
 	std::cout << data_message.length << "," << data_message.src_gps_x << "," << data_message.src_gps_y << "," << data_message.dst_gps_x << "," << data_message.dst_gps_y << std::endl;
 	nread = recvfrom(fd, (char*) data_buffer, data_message.length, 0, (struct sockaddr*) &from_addr, &from_len);
@@ -769,6 +799,7 @@ IR::recv_data(int fd)
 		GPS dst_gps = GPS(data_message.dst_gps_x,data_message.dst_gps_y);
 		Forwarding(dst_ip, dst_gps);
 	}
+	*/
     //curr = data_buffer;
     /*pkt_get_u32(&curr, &data_message.length);
     pkt_get_u32(&curr, &data_message.src_gps_x);
