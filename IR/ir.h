@@ -98,21 +98,22 @@ private:
 	void show_forward();
 	void show_neighbor();
 	///jixuefeng
-	void Forwarding(uint32_t dstID,uint64_t dstGPS);
+	void Forwarding(uint32_t dstID, GPS dstGPS);
 	bool IsLegal(uint32_t nghbrIP, GPS dstGPS);
 	uint32_t CalNexHop(GPS dstGPS);
 	uint32_t RouteMakeup(GPS dstGPS);
-    char * data_buffer;
-    //predict
-    GPS AdvancedPredict(std::queue<GPS> q, uint32_t time, Speed v);
-    double gaussrand(double mu,double sigma);
+    	char * data_buffer;
+    	//predict
+    	GPS AdvancedPredict(std::queue<GPS> q, uint32_t time, Speed v);
+    	double gaussrand(double mu,double sigma);
 	///jixuefeng
+
 	int gps_by_ip(uint32_t dst_vir_ip,uint32_t * dst_phy_ip,GPS * dst_gps);
 	int data_fd;
 	int tun_fd;
 	int beacon_interval;
 	struct sockaddr_in m_dataSA;
-    char * beacon_buffer;
+    	char * beacon_buffer;
 	GPS m_gps;
 	uint64_t m_speed;
 	std::map<uint32_t, ForwardTableEntry*> m_forward_table;

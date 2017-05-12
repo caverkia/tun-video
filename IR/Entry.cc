@@ -39,7 +39,7 @@
 	{
 		return m_gps;
 	}
-	void
+	void 
 	ForwardTableEntry::SetGPS(GPS gps)
 	{
 		m_gps = gps;
