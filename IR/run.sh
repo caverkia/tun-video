@@ -4,3 +4,6 @@ sudo openvpn --mktun --dev ${TUN}
 sudo ip link set ${TUN} up
 sudo ip addr add ${ADDR} dev ${TUN}
 WH test
+
+
+chuwen test
