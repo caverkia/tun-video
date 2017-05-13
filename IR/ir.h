@@ -80,6 +80,8 @@ public:
 	static struct sockaddr_in broadcast_addr;
 	int begin_time;
 private:
+	//add by hao @ 5-13
+	struct sockaddr_in remoteSA;
 	int get_ip(char * dev, struct in_addr* ip);
 	GPS get_gps();
 	int tun_alloc(char *dev, int flags);

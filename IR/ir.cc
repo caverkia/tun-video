@@ -163,7 +163,7 @@ IR::init(int argc, char * argv[])
 
 	struct ifreq ifr;
 	memset(&ifr, 0, sizeof(ifr));
-	if (argc != 2) {
+	if (argc != 3) {
 		printf("%s\n", usage);
 		exit(1);
 	}
@@ -173,6 +173,16 @@ IR::init(int argc, char * argv[])
 	data_buffer = (char*)malloc(sizeof(char) * FRAME_SIZE);
 	strncpy(tun_name, argv[1], IFNAMSIZ);
 	/* get ip*/
+
+
+
+	//hao: get remote IP
+ // 	struct sockaddr_in remoteSA;
+   	memset((char *) &remoteSA, 0, sizeof(remoteSA));
+   	remoteSA.sin_family = AF_INET;
+	if(inet_aton(argv[2], &(remoteSA.sin_addr)) == 0)
+	   die("invalid remote address");
+	remoteSA.sin_port = htons(DATA_PORT);
 
 	if (get_ip(phy_name, &m_phy_ip) < 0)
 		die("get physical ip error");
@@ -329,10 +339,13 @@ IR::gps_by_ip(uint32_t dst_vir_ip,uint32_t * dst_phy_ip,GPS * dst_gps)
 void
 IR::recv_tun(int fd)
 {
-	printf("receive tun \n");
-	uint16_t nread,nwrite;
-	uint32_t dst_phy_ip;
-	int opt;
+   printf("receive tun \n");
+   uint16_t nread,nwrite;
+   uint32_t dst_phy_ip;
+   int opt;
+
+   if(connect(data_fd, (struct sockaddr *) &remoteSA, sizeof(remoteSA)) != 0)
+      die("connect() to remote IP");
 
     nread = read(tun_fd, tun_buffer, sizeof(tun_buffer));
     if(nread > 0)
