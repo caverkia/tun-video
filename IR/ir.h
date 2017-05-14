@@ -37,6 +37,7 @@
 #define DATA_PORT 5556
 #define FRAME_SIZE 65536
 
+using namespace std;
 
 #define TTLNEIGHBORTABLE 5
 #define PI 3.14159
@@ -82,6 +83,7 @@ public:
 private:
 	//add by hao @ 5-13
 	struct sockaddr_in remoteSA;
+	struct sockaddr_in localSA;
 	int get_ip(char * dev, struct in_addr* ip);
 	GPS get_gps();
 	int tun_alloc(char *dev, int flags);
