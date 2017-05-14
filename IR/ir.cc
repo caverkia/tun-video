@@ -159,11 +159,11 @@ IR::init(int argc, char * argv[])
 //	char phy_name[IFNAMSIZ] = "eth0";  //hao @ 5-12
 	char usage[] = "usage: tunudp dev";
 //	int so_broadcast = 1;
-	int ret = -1;
+//	int ret = -1;
 
 //	struct ifreq ifr;
 //	memset(&ifr, 0, sizeof(ifr));
-	if (argc != 3) {
+	if (argc != 4) {
 		printf("%s\n", usage);
 		exit(1);
 	}
@@ -261,7 +261,7 @@ void
 IR::schedule()
 {
    char buffer[FRAME_SIZE];
-   int maxfd, nread, retn;
+   int maxfd, nread, retn, nwrite;
    fd_set rset;
    struct iphdr *p_ip;
    struct timeval tv;
@@ -289,7 +289,18 @@ IR::schedule()
 		{ // retn > 0
 			if (FD_ISSET(tun_fd, &rset))
 			{
-				recv_tun(tun_fd);
+			//	recv_tun(tun_fd);
+                printf("receive tun \n");
+                nread = read(tun_fd, buf, sizeof(buf));
+                printf("tun sent bytes = %d\n", nread);
+                if(nread > 0)
+                 {
+                    if(write(data_fd, buf, nread) != nread)
+                    perror("error in writing to UDP");
+                 }
+                 else
+                    perror("error in reading from TUN");
+
 			}
 			/*
 			if (FD_ISSET(beacon_fd, &rset))
@@ -359,14 +370,16 @@ void
 IR::recv_tun(int fd)
 {
    printf("receive tun \n");
-   uint16_t nread,nwrite;
+  // uint16_t nread,nwrite;
+   int nread, nwrite;
    uint32_t dst_phy_ip;
    int opt;
 
  //  if(connect(data_fd, (struct sockaddr *) &remoteSA, sizeof(remoteSA)) != 0)
    //   die("connect() to remote IP");
 
-    nread = read(tun_fd, tun_buffer, sizeof(tun_buffer));
+    nread = read(tun_fd, buf, sizeof(buf));
+    printf("tun sent bytes = %d\n", nread);
     if(nread > 0)
     {
         if(write(data_fd, tun_buffer, nread) != nread)
