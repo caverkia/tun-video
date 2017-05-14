@@ -310,7 +310,19 @@ IR::schedule()
 			*/
 			if (FD_ISSET(data_fd, &rset))
 			{
-				recv_data(data_fd);
+			//	recv_data(data_fd);
+		nread = read(data_fd, buf, sizeof(buf));
+		printf("receive data \n");
+                printf("sock gets bytes = %d\n", nread);
+		if(nread > 0)
+		{	
+        		if(write(tun_fd, buf, nread) != nread)
+            			perror("error in writing to TUN");
+    		 }
+    		else
+       		 perror("error in reading from tun");
+
+
 			}
 		}
 	}
