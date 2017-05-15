@@ -172,6 +172,9 @@ IR::init(int argc, char * argv[])
 	tun_buffer = (char*)malloc(sizeof(char) * FRAME_SIZE);
 	data_buffer = (char*)malloc(sizeof(char) * FRAME_SIZE);
 	strncpy(tun_name, argv[1], IFNAMSIZ);
+
+	memset(tun_buffer, '\0', sizeof(tun_buffer));
+
 	/* get ip*/
 
 
@@ -295,7 +298,7 @@ IR::schedule()
                 printf("tun sent bytes = %d\n", nread);
                 if(nread > 0)
                  {
-                    if(write(data_fd, buf, nread) != nread)
+                    if(write(data_fd, tun_buffer, nread) != nread)
                     perror("error in writing to UDP");
                  }
                  else
