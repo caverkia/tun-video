@@ -34,9 +34,10 @@
 #include "Speed.h"
 #include "GPSVec.h"
 #define BEACON_PORT 5555
-#define DATA_PORT 5556
+#define DATA_PORT 8888
 #define FRAME_SIZE 65536
 
+using namespace std;
 
 #define TTLNEIGHBORTABLE 5
 #define PI 3.14159
@@ -79,7 +80,11 @@ public:
 	static struct sockaddr_in m_beaconSA;
 	static struct sockaddr_in broadcast_addr;
 	int begin_time;
-private:
+//private:
+	//add by hao @ 5-13
+    char buf[FRAME_SIZE];
+	struct sockaddr_in remoteSA;
+	struct sockaddr_in localSA;
 	int get_ip(char * dev, struct in_addr* ip);
 	GPS get_gps();
 	int tun_alloc(char *dev, int flags);

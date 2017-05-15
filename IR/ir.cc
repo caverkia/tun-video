@@ -155,24 +155,47 @@ int
 IR::init(int argc, char * argv[])
 {
 	char tun_name[IFNAMSIZ];
-	char phy_name[IFNAMSIZ] = "wlan0";
+//	char phy_name[IFNAMSIZ] = "wlan0";
+//	char phy_name[IFNAMSIZ] = "eth0";  //hao @ 5-12
 	char usage[] = "usage: tunudp dev";
-	int so_broadcast = 1;
-	int ret = -1;
+//	int so_broadcast = 1;
+//	int ret = -1;
 
-	struct ifreq ifr;
-	memset(&ifr, 0, sizeof(ifr));
-	if (argc != 2) {
+//	struct ifreq ifr;
+//	memset(&ifr, 0, sizeof(ifr));
+	if (argc != 4) {
 		printf("%s\n", usage);
 		exit(1);
 	}
 
-	beacon_buffer = (char*)malloc(sizeof(char) * FRAME_SIZE);
+//	beacon_buffer = (char*)malloc(sizeof(char) * FRAME_SIZE);
 	tun_buffer = (char*)malloc(sizeof(char) * FRAME_SIZE);
 	data_buffer = (char*)malloc(sizeof(char) * FRAME_SIZE);
 	strncpy(tun_name, argv[1], IFNAMSIZ);
+
+	memset(tun_buffer, '\0', sizeof(tun_buffer));
+
 	/* get ip*/
 
+
+
+	//hao: get remote IP
+ // 	struct sockaddr_in remoteSA;
+   	memset((char *) &remoteSA, 0, sizeof(remoteSA));
+   	remoteSA.sin_family = AF_INET;
+	if(inet_aton(argv[3], &(remoteSA.sin_addr)) == 0)
+	   die("invalid remote address");
+	remoteSA.sin_port = htons(DATA_PORT);
+
+
+   	memset((char *) &localSA, 0, sizeof(localSA));
+   	localSA.sin_family = AF_INET;
+	if(inet_aton(argv[2], &(localSA.sin_addr)) == 0)
+	   die("invalid local address");
+	localSA.sin_port = htons(DATA_PORT);
+
+
+	/*
 	if (get_ip(phy_name, &m_phy_ip) < 0)
 		die("get physical ip error");
 	printf("PHYIP: %s\n", inet_ntoa(m_phy_ip));
@@ -180,7 +203,7 @@ IR::init(int argc, char * argv[])
 	if (get_ip(tun_name, &m_vir_ip) < 0)
 		die("get virtual ip error");
 	printf("VIRIP: %s\n", inet_ntoa(m_vir_ip));
-
+*/
 	/* create tun_fd */
 	/* connects to the tun device. IFF_TUN means the packet will include IP header, TCP / UDP header, and  the payload. */
 
@@ -192,6 +215,7 @@ IR::init(int argc, char * argv[])
 		die("ioctl TUNSETNOCSUM error");
 
 	/* create a UDP socket for beacon, bind it to phy_ip*/
+	/*
 	beacon_fd = socket(AF_INET, SOCK_DGRAM, 0);//IPPROTO_UDP
 	if (beacon_fd < 0)
 		die("creating UDP socket for beacon");
@@ -214,44 +238,51 @@ IR::init(int argc, char * argv[])
 
 	if (bind(beacon_fd, (struct sockaddr *) &m_beaconSA, sizeof(m_beaconSA)) != 0)
 		die("beacon bind()");
-
+*/
 	/* create a UDP socket for data, bind it to phy_ip*/
+	
+	/*
 	memset((char *)&m_dataSA, 0, sizeof(m_dataSA));
 	m_dataSA.sin_family = AF_INET;
 	m_dataSA.sin_addr = m_phy_ip;
 	m_dataSA.sin_port = htons(DATA_PORT);
+	*/
 	data_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (data_fd < 0)
 		die("creating UDP socket for data");
-	if (bind(data_fd, (struct sockaddr *) &m_dataSA, sizeof(m_dataSA)) != 0)
+	if (bind(data_fd, (struct sockaddr *) &localSA, sizeof(localSA)) != 0)
 		die("data bind()");
 
-	init_timer();
+	if(connect(data_fd, (struct sockaddr *) &remoteSA, sizeof(remoteSA)) != 0)
+	   die("connect()");
+
+//	init_timer();   // hao @ 5-12
 	return 0;
 }
 
 void
 IR::schedule()
 {
-	char buffer[FRAME_SIZE];
-	int maxfd, nread, retn;
-	fd_set rset;
-	struct iphdr *p_ip;
-    struct timeval tv;
-	struct  timezone tz;
-    gettimeofday(&tv,&tz);
-	begin_time = tv.tv_sec;
-	p_ip = (struct iphdr *) buffer;
-	maxfd = beacon_fd > tun_fd ? beacon_fd : tun_fd;
-	maxfd = data_fd > maxfd ? data_fd : maxfd;
-	maxfd++;
+   char buffer[FRAME_SIZE];
+   int maxfd, nread, retn, nwrite;
+   fd_set rset;
+   struct iphdr *p_ip;
+   struct timeval tv;
+   struct  timezone tz;
+   gettimeofday(&tv,&tz);
+   begin_time = tv.tv_sec;
+   p_ip = (struct iphdr *) buffer;
+//   maxfd = beacon_fd > tun_fd ? beacon_fd : tun_fd;
+//   maxfd = data_fd > maxfd ? data_fd : maxfd;
+   maxfd = data_fd > tun_fd ? data_fd : tun_fd;
+   maxfd++;
 
 	/* main loop */
 	while (1)
 	{
 		FD_ZERO(&rset);
 		FD_SET(tun_fd, &rset);
-		FD_SET(beacon_fd, &rset);
+//		FD_SET(beacon_fd, &rset);
 		FD_SET(data_fd, &rset);
 
 		retn = select(maxfd, &rset, NULL, NULL, NULL);
@@ -261,15 +292,40 @@ IR::schedule()
 		{ // retn > 0
 			if (FD_ISSET(tun_fd, &rset))
 			{
-				recv_tun(tun_fd);
+			//	recv_tun(tun_fd);
+                printf("receive tun \n");
+                nread = read(tun_fd, buf, sizeof(buf));
+                printf("tun sent bytes = %d\n", nread);
+                if(nread > 0)
+                 {
+                    if(write(data_fd, tun_buffer, nread) != nread)
+                    perror("error in writing to UDP");
+                 }
+                 else
+                    perror("error in reading from TUN");
+
 			}
+			/*
 			if (FD_ISSET(beacon_fd, &rset))
 			{
 				recv_beacon(beacon_fd);
 			}
+			*/
 			if (FD_ISSET(data_fd, &rset))
 			{
-				recv_data(data_fd);
+			//	recv_data(data_fd);
+		nread = read(data_fd, buf, sizeof(buf));
+		printf("receive data \n");
+                printf("sock gets bytes = %d\n", nread);
+		if(nread > 0)
+		{	
+        		if(write(tun_fd, buf, nread) != nread)
+            			perror("error in writing to TUN");
+    		 }
+    		else
+       		 perror("error in reading from tun");
+
+
 			}
 		}
 	}
@@ -293,7 +349,7 @@ IR::schedule()
 				if (nread > 0) {
 					//if(p_ip->protocol == IPPROTO_TCP) {
 	//                  p_tcp = (struct tcphdr *)(buffer + p_ip->ihl * 4);
-	//                  /* not sure setting rawSA is required or not. setting it anyway.
+	//  not sure setting rawSA is required or not. setting it anyway.
 	//                  rawSA.sin_addr.s_addr = p_ip->daddr;
 	//                  rawSA.sin_port = p_tcp->dest;
 	//                  if(sendto(raw_fd, buffer, nread, 0,
@@ -328,11 +384,29 @@ IR::gps_by_ip(uint32_t dst_vir_ip,uint32_t * dst_phy_ip,GPS * dst_gps)
 void
 IR::recv_tun(int fd)
 {
-	printf("receive tun \n");
-	uint16_t nread,nwrite;
-	uint32_t dst_phy_ip;
-	int opt;
-	struct iphdr *p_ip;
+   printf("receive tun \n");
+  // uint16_t nread,nwrite;
+   int nread, nwrite;
+   uint32_t dst_phy_ip;
+   int opt;
+
+ //  if(connect(data_fd, (struct sockaddr *) &remoteSA, sizeof(remoteSA)) != 0)
+   //   die("connect() to remote IP");
+
+    nread = read(tun_fd, buf, sizeof(buf));
+    printf("tun sent bytes = %d\n", nread);
+    if(nread > 0)
+    {
+        if(write(data_fd, tun_buffer, nread) != nread)
+            perror("error in writing to UDP");
+    }
+    else
+        perror("error in reading from TUN");
+    return;
+
+
+/*
+    struct iphdr *p_ip;
 	GPS dst_gps;
 	const char* curr_tun;
 	struct DataMessage message;
@@ -370,7 +444,7 @@ IR::recv_tun(int fd)
 		sendto(data_fd, (char *)&message, sizeof(message), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr));
 		sendto(data_fd, tun_buffer, sizeof(tun_buffer), 0, (struct sockaddr*) &broadcast_addr, sizeof(broadcast_addr));
 	}
-
+*/
 }
 
 void
@@ -741,7 +815,21 @@ IR::recv_data(int fd)
 	struct DataMessage data_message;
 	int count;
 	int nread;
+
+	nread = read(fd, data_buffer, sizeof(data_buffer));
 	printf("receive data \n");
+	
+	cout << nread << endl;
+	if(nread > 0)
+	{
+        if(write(tun_fd, data_buffer, nread) != nread)
+            perror("error in writing to TUN");
+    }
+    else
+        perror("error in reading from tun");
+    return;       
+	
+	/*
 	count = recvfrom(fd, (char*) &data_message, sizeof(DataMessage), 0, (struct sockaddr*) &from_addr, &from_len);
 	std::cout << data_message.length << "," << data_message.src_gps_x << "," << data_message.src_gps_y << "," << data_message.dst_gps_x << "," << data_message.dst_gps_y << std::endl;
 	nread = recvfrom(fd, (char*) data_buffer, data_message.length, 0, (struct sockaddr*) &from_addr, &from_len);
@@ -769,6 +857,7 @@ IR::recv_data(int fd)
 		GPS dst_gps = GPS(data_message.dst_gps_x,data_message.dst_gps_y);
 		Forwarding(dst_ip, dst_gps);
 	}
+	*/
     //curr = data_buffer;
     /*pkt_get_u32(&curr, &data_message.length);
     pkt_get_u32(&curr, &data_message.src_gps_x);
