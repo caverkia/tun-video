@@ -294,7 +294,7 @@ IR::init(int argc, char * argv[])
 	if (bind(data_fd, (struct sockaddr *) &m_dataSA, sizeof(m_dataSA)) != 0)
 		die("data bind()");
 
-	//init_timer();
+	init_timer();
 	return 0;
 }
 

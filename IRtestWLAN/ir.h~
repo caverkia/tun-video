@@ -43,7 +43,7 @@
 #define FRAME_SIZE 65536
 
 
-#define TTLNEIGHBORTABLE 5
+#define TTLNEIGHBORTABLE 1000
 #define PI 3.14159
 #define CALNEXTHOPANGLE PI/3
 #define MAXDISTANCE 200
@@ -125,8 +125,8 @@ private:
     	char beacon_buffer[FRAME_SIZE];
 	char tun_buffer[FRAME_SIZE];
 	char data_recv_buffer[FRAME_SIZE];
-	GPS m_gps;
 	static double m_speed;
+	static GPS m_gps;
 	std::map<uint32_t, ForwardTableEntry*> m_forward_table;
 	std::map<uint32_t, NeighborEntry*> m_neighbor_table;
 

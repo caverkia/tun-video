@@ -172,10 +172,10 @@ IR::init_timer()
 	struct itimerval tv, otv;
 	signal(SIGALRM, send_beacon);
 	//how long to run the first time
-	tv.it_value.tv_sec = 1;
+	tv.it_value.tv_sec = 10;
 	tv.it_value.tv_usec = 0;
 	//after the first time, how long to run next time
-	tv.it_interval.tv_sec = 1;
+	tv.it_interval.tv_sec = 10;
 	tv.it_interval.tv_usec = 0;
 
 	if (setitimer(ITIMER_REAL, &tv, &otv) != 0)
